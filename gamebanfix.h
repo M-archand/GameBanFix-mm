@@ -8,7 +8,6 @@
 #include "tier0/commonmacros.h"
 #include "networksystem/inetworkserializer.h"
 #include <iserver.h>
-#include <sh_vector.h>
 
 class GameBanFix : public ISmmPlugin, public IMetamodListener
 {

@@ -1,8 +1,14 @@
 # vim: set sts=2 ts=8 sw=2 tw=99 et ft=python:
-import os, sys
+import os, sys, shutil
 
 # Edit the functions below for the extra functionality, the return should be
 # a list of path's to wanted locations
+def hasLLDLinker():
+  result = shutil.which('lld')
+  if not result:
+    result = shutil.which('ld.lld')
+  return result != None
+
 def additional_libs(context, binary, sdk):
   return [
     # Path should be relative either to hl2sdk folder or to build folder
@@ -255,6 +261,13 @@ class MMSPluginConfig(object):
       elif cxx.family == 'clang':
         cxx.linkflags += ['-lgcc_eh']
       cxx.linkflags += ['-static-libstdc++']
+
+      if hasLLDLinker():
+        # This prevents STB_GNU_UNIQUE symbols from appearing in resulting binary
+        # as these cause it to not unload on dlclose which metamod relies on to unload its plugins
+        # as a result this messes with static/global variable destruction & causes other various effects
+        # like server crashes on server exit
+        cxx.linkflags += ['-fuse-ld=lld', '-Wl,--no-gnu-unique']
     elif cxx.target.platform == 'windows':
       cxx.defines += ['WIN32', '_WINDOWS']
 
@@ -276,7 +289,7 @@ class MMSPluginConfig(object):
     cxx.cxxincludes += [
       os.path.join(context.currentSourcePath),
       os.path.join(mms_core_path),
-      os.path.join(mms_core_path, 'sourcehook'),
+      os.path.join(self.mms_root, 'third_party', 'khook', 'include'),
     ]
 
     defines = []

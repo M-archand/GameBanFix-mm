@@ -73,11 +73,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # Pinned to a known good KHook release version
       - name: Checkout Metamod
         uses: actions/checkout@v7
         with:
           repository: alliedmodders/metamod-source
-          ref: master
+          ref: 2.0.0.1467
           path: mmsource-2.0
           submodules: recursive
 
@@ -110,6 +111,7 @@ jobs:
           wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
           apt update && apt install -y clang-21
           ln -sf /usr/bin/clang-21 /usr/bin/clang && ln -sf /usr/bin/clang++-21 /usr/bin/clang++
+          if apt install -y lld-21; then ln -sf /usr/bin/ld.lld-21 /usr/bin/ld.lld; else echo "lld-21 unavailable, using default linker"; fi
 
       - name: Build
         working-directory: ${{ github.event.repository.name }}
