@@ -1,6 +1,11 @@
 # Changelog
 
-## [1.1.0](https://github.com/M-archand/GameBanFix-mm/compare/7af46ce...v1.1.0) (2026-09-15)
+## [2.0.0](https://github.com/M-archand/GameBanFix-mm/compare/v1.0.7...v2.0.0) (2026-09-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **Requires Metamod:Source build 1461 or newer.** Metamod 2.0.0.1459+ removed `core/sourcehook` in favour of KHook and bumped the plugin API to 18. Older Metamod builds will refuse to load this plugin.
 
 
 ### Features
@@ -37,6 +42,14 @@
 
 * Signature syntax is IDA style: space-separated hex bytes with `?` for a wildcard, replacing `\xAB` escapes with `\x2A` as the wildcard
 * The install path moved from the platform bin folder to `addons/gamebanfix/gamedata/`. Extract the release over `game/csgo` as usual; a stale `gamebanfix.games.txt` left at the old path is ignored and can be deleted
+
+
+### Builds
+
+* **khook:** build against Metamod's KHook headers (`third_party/khook/include`) instead of the removed `core/sourcehook`, and drop the unused `sh_vector.h` include. The plugin hooks through funchook detours only, so no hook code had to be ported
+* **protobuf:** generate `network_connection.pb.h` from the SDK's `common/network_connection.proto` with protoc during the build, instead of relying on a header the SDK does not ship
+* **ci:** pin the Metamod checkout to `2.0.0.1462` rather than tracking `master`, so an upstream API change cannot break CI silently
+* **ci:** install `lld-21` alongside clang, and link with `-fuse-ld=lld -Wl,--no-gnu-unique` when lld is present. This keeps `STB_GNU_UNIQUE` symbols out of the binary so Metamod can `dlclose` the plugin cleanly on unload
 
 
 ### Miscellaneous
