@@ -113,29 +113,9 @@ const char *CGameConfig::GetLibrary(const std::string& name)
 	return it->second.c_str();
 }
 
-CModule **CGameConfig::GetModule(const char *name)
+CModule *CGameConfig::GetModule(const char *name)
 {
-	const char *library = this->GetLibrary(name);
-	if (!library)
-		return nullptr;
-
-	if (strcmp(library, "engine") == 0)
-		return &modules::engine;
-	else if (strcmp(library, "server") == 0)
-		return &modules::server;
-	else if (strcmp(library, "client") == 0)
-		return &modules::client;
-	else if (strcmp(library, "vscript") == 0)
-		return &modules::vscript;
-	else if (strcmp(library, "tier0") == 0)
-		return &modules::tier0;
-	else if (strcmp(library, "networksystem") == 0)
-		return &modules::networksystem;
-#ifdef _WIN32
-	else if (strcmp(library, "hammer") == 0)
-		return &modules::hammer;
-#endif
-	return nullptr;
+	return modules::Get(this->GetLibrary(name));
 }
 
 bool CGameConfig::IsSymbol(const char *name)
@@ -163,8 +143,8 @@ const char* CGameConfig::GetSymbol(const char *name)
 
 void *CGameConfig::ResolveSignature(const char *name)
 {
-	CModule **module = this->GetModule(name);
-	if (!module || !(*module) || !(*module)->IsValid())
+	CModule *module = this->GetModule(name);
+	if (!module || !module->IsValid())
 	{
 		Panic("Invalid Module %s\n", name);
 		return nullptr;
@@ -179,7 +159,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 			Panic("Invalid symbol for %s\n", name);
 			return nullptr;
 		}
-		address = dlsym((*module)->m_hModule, symbol);
+		address = dlsym(module->m_hModule, symbol);
 	}
 	else
 	{
@@ -197,7 +177,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 
 		int error;
 
-		address = (*module)->FindSignature((const byte *)vecSignature.data(), (const byte *)vecMask.data(), vecSignature.size(), error);
+		address = module->FindSignature((const byte *)vecSignature.data(), (const byte *)vecMask.data(), vecSignature.size(), error);
 
 		if (error == SIG_FOUND_MULTIPLE)
 			Panic("!!!!!!!!!! Signature for %s occurs multiple times! Using first match but this might end up crashing!\n", name);

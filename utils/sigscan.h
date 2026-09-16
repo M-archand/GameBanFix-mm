@@ -1,7 +1,6 @@
 /**
  * =============================================================================
- * CS2Fixes
- * Copyright (C) 2023 Source2ZE
+ * GameBanFix
  * =============================================================================
  *
  * This program is free software; you can redistribute it and/or modify it under
@@ -17,47 +16,35 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 #pragma once
-#include <vector>
-#include <string>
+#include <cstddef>
 #include <cstdint>
-#include "metamod_oslink.h"
 
-struct Section
+inline bool ScanForSignature(const uint8_t *pStart, size_t iSize, const uint8_t *pData, const uint8_t *pMask, size_t iSigLength, void *&pFound)
 {
-	std::string m_szName;
-	void* m_pBase;
-	size_t m_iSize;
-	bool m_bExecutable = false;
-};
+	if (!pStart || !pData || !pMask || iSigLength == 0 || iSize < iSigLength)
+		return false;
 
-#if defined(_WIN32)
-#define FASTCALL __fastcall
-#define THISCALL __thiscall
-#else
-#define FASTCALL
-#define THISCALL
-#define strtok_s strtok_r
-#endif
+	const uint8_t *pMatch = static_cast<const uint8_t *>(pFound);
 
-struct Module
-{
-#ifndef _WIN32
-	void* pHandle;
-#endif
-	uint8_t* pBase;
-	unsigned int nSize;
-};
+	for (size_t i = 0; i <= iSize - iSigLength; i++)
+	{
+		size_t iMatched = 0;
+		while (!pMask[iMatched] || pStart[i + iMatched] == pData[iMatched])
+		{
+			if (++iMatched == iSigLength)
+				break;
+		}
 
-#ifndef _WIN32
-int GetModuleInformation(HINSTANCE module, void** base, size_t* length, std::vector<Section>& m_sections);
-#endif
+		if (iMatched != iSigLength)
+			continue;
 
-#ifdef _WIN32
-#define MODULE_PREFIX ""
-#define MODULE_EXT ".dll"
-#else
-#define MODULE_PREFIX "lib"
-#define MODULE_EXT ".so"
-#endif
+		if (pMatch)
+			return true;
+
+		pMatch = pStart + i;
+		pFound = const_cast<uint8_t *>(pMatch);
+	}
+
+	return false;
+}

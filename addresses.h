@@ -35,16 +35,7 @@
 
 namespace modules
 {
-	inline CModule *engine;
-	inline CModule *tier0;
-	inline CModule *server;
-	inline CModule *schemasystem;
-	inline CModule *vscript;
-	inline CModule *client;
-	inline CModule *networksystem;
-#ifdef _WIN32
-	inline CModule *hammer;
-#endif
+	CModule *Get(const char *library);
 }
 
 // Can't be forward-declared, can't include cgamerules.h.. just define it here
@@ -61,7 +52,7 @@ namespace addresses
 	bool Initialize(CGameConfig *g_GameConfig);
 	bool InitializeBanMap(CGameConfig *g_GameConfig);
 
-	// Releases every module Initialize mapped
+	// Releases every module mapped through modules::Get
 	void Shutdown();
 
 	inline CUtlOrderedMap<uint32, CGcBanInformation_t, uint32> *sm_mapGcBanInformation;

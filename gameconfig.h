@@ -20,7 +20,7 @@ public:
 	const char *GetLibrary(const std::string& name);
 	const char *GetSignature(const std::string& name);
 	const char* GetSymbol(const char *name);
-	CModule **GetModule(const char *name);
+	CModule *GetModule(const char *name);
 	bool IsSymbol(const char *name);
 	void *ResolveSignature(const char *name);
 	static std::string GetDirectoryName(const std::string &directoryPathInput);

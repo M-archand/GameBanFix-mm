@@ -22,6 +22,7 @@
 #include "interface.h"
 #include "strtools.h"
 #include "plat.h"
+#include "sigscan.h"
 
 #ifdef _WIN32
 #include <Psapi.h>
@@ -97,9 +98,15 @@ public:
 	// False when the module failed to load or its image info could not be read
 	bool IsValid() const { return m_hModule && m_base; }
 
+	bool ContainsRange(const void *pStart, size_t iSize) const
+	{
+		uintptr_t base = reinterpret_cast<uintptr_t>(m_base);
+		uintptr_t start = reinterpret_cast<uintptr_t>(pStart);
+		return start >= base && iSize <= m_size && start - base <= m_size - iSize;
+	}
+
 	void *FindSignature(const byte *pData, const byte *pMask, size_t iSigLength, int &error)
 	{
-		unsigned char *pMemory;
 		void *return_addr = nullptr;
 		error = 0;
 
@@ -109,26 +116,24 @@ public:
 			return nullptr;
 		}
 
-		pMemory = (byte*)m_base;
-
-		for (size_t i = 0; i <= m_size - iSigLength; i++)
+		bool bScannedSection = false;
+		for (auto &section : m_sections)
 		{
-			size_t Matches = 0;
-			while (!pMask[Matches] || *(pMemory + i + Matches) == pData[Matches])
-			{
-				Matches++;
-				if (Matches == iSigLength)
-				{
-					if (return_addr)
-					{
-						error = SIG_FOUND_MULTIPLE;
-						return return_addr;
-					}
+			if (!section.m_bExecutable || !ContainsRange(section.m_pBase, section.m_iSize))
+				continue;
 
-					return_addr = (void *)(pMemory + i);
-					break;
-				}
+			bScannedSection = true;
+			if (ScanForSignature((const uint8_t *)section.m_pBase, section.m_iSize, pData, pMask, iSigLength, return_addr))
+			{
+				error = SIG_FOUND_MULTIPLE;
+				return return_addr;
 			}
+		}
+
+		if (!bScannedSection && ScanForSignature((const uint8_t *)m_base, m_size, pData, pMask, iSigLength, return_addr))
+		{
+			error = SIG_FOUND_MULTIPLE;
+			return return_addr;
 		}
 
 		if (!return_addr)

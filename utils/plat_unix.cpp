@@ -92,6 +92,7 @@ int GetModuleInformation(HINSTANCE hModule, void** base, size_t* length, std::ve
 				section.m_szName = strTab + shdr->sh_name;
 				section.m_pBase = reinterpret_cast<void*>(lmap->l_addr + shdr->sh_addr);
 				section.m_iSize = shdr->sh_size;
+				section.m_bExecutable = (shdr->sh_flags & SHF_EXECINSTR) != 0;
 				m_sections.push_back(section);
 			}
 

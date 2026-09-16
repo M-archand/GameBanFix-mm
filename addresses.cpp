@@ -20,9 +20,68 @@
 #include "addresses.h"
 #include "utils/module.h"
 
+#include <cstring>
+
 #include "tier0/memdbgon.h"
 
 extern CGameConfig *g_GameConfig;
+
+namespace
+{
+	struct ModuleSlot
+	{
+		const char *m_pszLibrary;
+		const char *m_pszPath;
+		const char *m_pszModule;
+		CModule *m_pModule = nullptr;
+	};
+
+	ModuleSlot s_modules[] = {
+		{"engine", ROOTBIN, "engine2"},
+		{"tier0", ROOTBIN, "tier0"},
+		{"server", GAMEBIN, "server"},
+		{"schemasystem", ROOTBIN, "schemasystem"},
+		{"vscript", ROOTBIN, "vscript"},
+		{"networksystem", ROOTBIN, "networksystem"},
+		{"client", GAMEBIN, "client"},
+#ifdef _WIN32
+		{"hammer", ROOTBIN, "tools/hammer"},
+#endif
+	};
+
+	bool IsModulePresent(const char *library)
+	{
+		if (strcmp(library, "client") == 0)
+			return !CommandLine()->HasParm("-dedicated");
+#ifdef _WIN32
+		if (strcmp(library, "hammer") == 0)
+			return CommandLine()->HasParm("-tools");
+#endif
+		return true;
+	}
+}
+
+CModule *modules::Get(const char *library)
+{
+	if (!library)
+		return nullptr;
+
+	for (auto &slot : s_modules)
+	{
+		if (strcmp(slot.m_pszLibrary, library) != 0)
+			continue;
+
+		if (!IsModulePresent(library))
+			return nullptr;
+
+		if (!slot.m_pModule)
+			slot.m_pModule = new CModule(slot.m_pszPath, slot.m_pszModule);
+
+		return slot.m_pModule;
+	}
+
+	return nullptr;
+}
 
 #define RESOLVE_SIG(gameConfig, name, variable) \
 	variable = (decltype(variable))gameConfig->ResolveSignature(name);	\
@@ -35,23 +94,6 @@ extern CGameConfig *g_GameConfig;
 
 bool addresses::Initialize(CGameConfig *g_GameConfig)
 {
-	modules::engine = new CModule(ROOTBIN, "engine2");
-	modules::tier0 = new CModule(ROOTBIN, "tier0");
-	modules::server = new CModule(GAMEBIN, "server");
-	modules::schemasystem = new CModule(ROOTBIN, "schemasystem");
-	modules::vscript = new CModule(ROOTBIN, "vscript");
-	modules::networksystem = new CModule(ROOTBIN, "networksystem");
-	modules::client = nullptr;
-
-	if (!CommandLine()->HasParm("-dedicated"))
-		modules::client = new CModule(GAMEBIN, "client");
-
-#ifdef _WIN32
-	modules::hammer = nullptr;
-	if (CommandLine()->HasParm("-tools"))
-		modules::hammer = new CModule(ROOTBIN, "tools/hammer");
-#endif
-
 	return InitializeBanMap(g_GameConfig);
 }
 
@@ -84,24 +126,13 @@ bool addresses::InitializeBanMap(CGameConfig* g_GameConfig)
 	return true;
 }
 
-static void ReleaseModule(CModule *&module)
-{
-	delete module;
-	module = nullptr;
-}
-
 void addresses::Shutdown()
 {
-	ReleaseModule(modules::engine);
-	ReleaseModule(modules::tier0);
-	ReleaseModule(modules::server);
-	ReleaseModule(modules::schemasystem);
-	ReleaseModule(modules::vscript);
-	ReleaseModule(modules::networksystem);
-	ReleaseModule(modules::client);
-#ifdef _WIN32
-	ReleaseModule(modules::hammer);
-#endif
+	for (auto &slot : s_modules)
+	{
+		delete slot.m_pModule;
+		slot.m_pModule = nullptr;
+	}
 
 	addresses::sm_mapGcBanInformation = nullptr;
 }
