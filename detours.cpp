@@ -48,11 +48,9 @@ void FlushAllDetours()
 		g_vecDetours[i]->FreeDetour();
 }
 
-void FASTCALL Detour_GameSystem_Think_CheckSteamBan()
+// Implementation shared by @aiolos1045
+static void PurgeGcBanInformation()
 {
-	// Implementation shared by @aiolos1045
-	GameSystem_Think_CheckSteamBan();
-
 	auto pMap = addresses::sm_mapGcBanInformation;
 	if (!pMap)
 		return;
@@ -63,3 +61,19 @@ void FASTCALL Detour_GameSystem_Think_CheckSteamBan()
 	if (count > 0)
 		pMap->RemoveAll();
 }
+
+#ifdef _WIN32
+void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4)
+{
+	GameSystem_Think_CheckSteamBan(a1, a2, a3, a4);
+
+	PurgeGcBanInformation();
+}
+#else
+void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4, void *a5, void *a6)
+{
+	GameSystem_Think_CheckSteamBan(a1, a2, a3, a4, a5, a6);
+
+	PurgeGcBanInformation();
+}
+#endif
