@@ -41,5 +41,19 @@ for sdk_target in MMSPlugin.sdk_targets:
       ]
     binary.sources += ['utils/plat_win.cpp']
 
+  # hl2sdk-cs2's public/eiface.h includes "network_connection.pb.h", but the
+  # SDK only ships the .proto source for it (common/network_connection.proto),
+  # not the protoc-generated header. Compile it here so the header exists
+  # before eiface.h needs it; binary.custom also makes AMBuild add the
+  # generated-file objdir to this binary's include path automatically.
+  protoc_builder = builder.tools.Protoc(protoc = sdk_target.protoc, sources = [
+    os.path.join(sdk['path'], 'common', 'network_connection.proto'),
+  ])
+  protoc_builder.protoc.includes += [
+    os.path.join(sdk['path'], 'common'),
+  ]
+
+  binary.custom = [protoc_builder]
+
   nodes = builder.Add(binary)
   MMSPlugin.binaries += [nodes]
