@@ -3,6 +3,7 @@
 #include "gameconfig.h"
 #include "detours.h"
 #include "utils/module.h"
+#include "version.h"
 
 IVEngineServer2 *g_pEngineServer2 = nullptr;
 CGameConfig *g_GameConfig = nullptr;
@@ -132,7 +133,7 @@ const char *GameBanFix::GetLicense()
 
 const char *GameBanFix::GetVersion()
 {
-	return "1.0.7";
+	return GAMEBANFIX_VERSION;
 }
 
 const char *GameBanFix::GetDate()

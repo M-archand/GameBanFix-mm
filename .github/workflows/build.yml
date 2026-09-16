@@ -1,20 +1,58 @@
-name: CI
+# Releases are run by hand
+
+name: Build & Release
 
 on:
-  push:
-    tags:
-      - '*'
-    paths-ignore:
-    - LICENSE
-    - README.md
-  pull_request:
-    paths-ignore:
-    - LICENSE
-    - README.md
+  workflow_dispatch:
 
 jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve the tag from version.h
+        id: resolve
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          # One source of truth for the version, bumped by hand in the source.
+          version="$(sed -n 's/^#define GAMEBANFIX_VERSION[[:space:]]*"\([^"]*\)".*$/\1/p' version.h)"
+          if [ -z "$version" ]; then
+            echo "::error file=version.h::Could not read GAMEBANFIX_VERSION from version.h."
+            exit 1
+          fi
+          tag="v$version"
+
+          # Asked of GitHub rather than the local clone, so the answer is what
+          # is actually published no matter what this checkout fetched.
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            {
+              echo "### Release $tag already exists"
+              echo
+              echo "Version \`$version\` has already been published, so this run cannot release it again."
+              echo "Bump \`GAMEBANFIX_VERSION\` in \`version.h\` to the next version, push that, then run this workflow again."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error file=version.h::Version $version already exists as tag $tag. Bump GAMEBANFIX_VERSION in version.h and run again."
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Building $tag; the release job creates the tag once the builds pass."
+          echo "Building **$tag** from \`version.h\`." >> "$GITHUB_STEP_SUMMARY"
+
   build:
     name: Build
+    needs: version
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
     strategy:
@@ -27,14 +65,14 @@ jobs:
             container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: ${{ github.event.repository.name }}
           submodules: recursive
           fetch-depth: 0
 
       - name: Checkout Metamod
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: alliedmodders/metamod-source
           ref: master
@@ -42,14 +80,14 @@ jobs:
           submodules: recursive
 
       - name: Checkout HL2SDK
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: alliedmodders/hl2sdk
           ref: cs2
           path: hl2sdk-cs2
 
       - name: Checkout AMBuild
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: alliedmodders/ambuild
           path: ambuild
@@ -80,36 +118,51 @@ jobs:
           ambuild
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ runner.os }}
           path: ${{ github.event.repository.name }}/build/package
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [version, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Create the tag
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "$TAG"
+          git push origin "refs/tags/$TAG"
 
       - name: Package
+        env:
+          VERSION: ${{ needs.version.outputs.tag }}
+          NAME: ${{ github.event.repository.name }}
         run: |
-          version=`echo $GITHUB_REF | sed "s/refs\/tags\///"`
-          ls -Rall
-          if [ -d "./Linux/" ]; then
-            cd ./Linux/
-            tar -czf ../${{ github.event.repository.name }}-${version}-linux.tar.gz *
-            cd -
+          set -euo pipefail
+          if [ -d "artifacts/Linux" ]; then
+            ( cd artifacts/Linux && zip -qr "$GITHUB_WORKSPACE/${NAME}-${VERSION}-linux.zip" * )
           fi
-          if [ -d "./Windows/" ]; then
-            cd ./Windows/
-            zip -r ../${{ github.event.repository.name }}-${version}-windows.zip *
-            cd -
+          if [ -d "artifacts/Windows" ]; then
+            ( cd artifacts/Windows && zip -qr "$GITHUB_WORKSPACE/${NAME}-${VERSION}-windows.zip" * )
           fi
 
       - name: Release
@@ -117,5 +170,7 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ github.event.repository.name }}-*
-          tag: ${{ github.ref }}
+          tag: ${{ needs.version.outputs.tag }}
           file_glob: true
+          overwrite: true
+          release_name: ${{ needs.version.outputs.tag }}
