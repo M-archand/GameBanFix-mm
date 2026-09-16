@@ -35,10 +35,11 @@ void Panic(const char *msg, ...)
 	va_end(args);
 }
 
-// Load failures are reported through Metamod's error/maxlen buffer rather than taking the server down
-static void AbortLoad()
+// Releases everything Load acquired. Safe to call when Load failed partway through
+static void Teardown()
 {
 	FlushAllDetours();
+	addresses::Shutdown();
 
 	delete g_GameConfig;
 	g_GameConfig = nullptr;
@@ -67,7 +68,7 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 	{
 		snprintf(error, maxlen, "Could not read %s: %s", g_GameConfig->GetPath().c_str(), conf_error);
 		Panic("%s\n", error);
-		AbortLoad();
+		Teardown();
 		return false;
 	}
 
@@ -75,7 +76,7 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 	{
 		snprintf(error, maxlen, "Could not initialize addresses. Signatures are likely outdated.");
 		Panic("%s\n", error);
-		AbortLoad();
+		Teardown();
 		return false;
 	}
 
@@ -83,7 +84,7 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 	{
 		snprintf(error, maxlen, "Could not initialize detours.");
 		Panic("%s\n", error);
-		AbortLoad();
+		Teardown();
 		return false;
 	}
 
@@ -92,7 +93,7 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 
 bool GameBanFix::Unload(char *error, size_t maxlen)
 {
-	FlushAllDetours();
+	Teardown();
 
 	return true;
 }

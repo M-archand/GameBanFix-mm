@@ -61,5 +61,8 @@ namespace addresses
 	bool Initialize(CGameConfig *g_GameConfig);
 	bool InitializeBanMap(CGameConfig *g_GameConfig);
 
+	// Releases every module Initialize mapped
+	void Shutdown();
+
 	inline CUtlOrderedMap<uint32, CGcBanInformation_t, uint32> *sm_mapGcBanInformation;
 }

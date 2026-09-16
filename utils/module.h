@@ -70,6 +70,7 @@ public:
 		if (int e = GetModuleInformation(m_hModule, &m_base, &m_size, m_sections))
 		{
 			Panic("Failed to get module info for %s, error %d\n", szModule, e);
+			m_hModule = nullptr;
 			m_base = nullptr;
 			m_size = 0;
 			return;
@@ -83,6 +84,15 @@ public:
 		Message("Initialized module %s base: 0x%p | size: %d\n", m_pszModule, m_base, m_size);
 #endif
 	}
+
+	~CModule()
+	{
+		if (m_hModule)
+			dlclose(m_hModule);
+	}
+
+	CModule(const CModule &) = delete;
+	CModule &operator=(const CModule &) = delete;
 
 	// False when the module failed to load or its image info could not be read
 	bool IsValid() const { return m_hModule && m_base; }

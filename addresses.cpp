@@ -83,3 +83,25 @@ bool addresses::InitializeBanMap(CGameConfig* g_GameConfig)
 	Message("Found %s at 0x%p\n", "CCSGameRules__sm_mapGcBanInformation", addresses::sm_mapGcBanInformation);
 	return true;
 }
+
+static void ReleaseModule(CModule *&module)
+{
+	delete module;
+	module = nullptr;
+}
+
+void addresses::Shutdown()
+{
+	ReleaseModule(modules::engine);
+	ReleaseModule(modules::tier0);
+	ReleaseModule(modules::server);
+	ReleaseModule(modules::schemasystem);
+	ReleaseModule(modules::vscript);
+	ReleaseModule(modules::networksystem);
+	ReleaseModule(modules::client);
+#ifdef _WIN32
+	ReleaseModule(modules::hammer);
+#endif
+
+	addresses::sm_mapGcBanInformation = nullptr;
+}
