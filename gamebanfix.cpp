@@ -3,21 +3,12 @@
 #include "gameconfig.h"
 #include "detours.h"
 #include "utils/module.h"
-#include "schemasystem/schemasystem.h"
 #include <KeyValues.h>
-#include "entity2/entitysystem.h"
 
-CSchemaSystem *g_pSchemaSystem2 = nullptr;
 IVEngineServer2 *g_pEngineServer2 = nullptr;
 CGameConfig *g_GameConfig = nullptr;
 
 GameBanFix g_Plugin;
-
-CGameEntitySystem *GameEntitySystem()
-{
-	static int offset = g_GameConfig->GetOffset("GameEntitySystem");
-	return *reinterpret_cast<CGameEntitySystem **>((uintptr_t)(g_pGameResourceServiceServer) + offset);
-}
 
 void Message(const char *msg, ...)
 {
@@ -59,10 +50,8 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 {
 	PLUGIN_SAVEVARS();
 
-	GET_V_IFACE_CURRENT(GetEngineFactory, g_pSchemaSystem2, CSchemaSystem, SCHEMASYSTEM_INTERFACE_VERSION);
 	GET_V_IFACE_ANY(GetFileSystemFactory, g_pFullFileSystem, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
 	GET_V_IFACE_CURRENT(GetEngineFactory, g_pEngineServer2, IVEngineServer2, SOURCE2ENGINETOSERVER_INTERFACE_VERSION);
-	GET_V_IFACE_CURRENT(GetEngineFactory, g_pGameResourceServiceServer, IGameResourceService, GAMERESOURCESERVICESERVER_INTERFACE_VERSION);
 
 	CBufferStringGrowable<256> gamedirpath;
 	g_pEngineServer2->GetGameDir(gamedirpath);

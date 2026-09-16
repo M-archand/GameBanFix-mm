@@ -17,9 +17,6 @@ for sdk_target in MMSPlugin.sdk_targets:
     'addresses.cpp',
     'gameconfig.cpp',
     'detours.cpp',
-    'cs2_sdk/schema.cpp',
-    os.path.join(sdk['path'], 'entity2', 'entitysystem.cpp'),
-    os.path.join(sdk['path'], 'entity2', 'entityidentity.cpp'),
   ]
 
 

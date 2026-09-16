@@ -37,42 +37,6 @@ enum SigError
 	SIG_FOUND_MULTIPLE,
 };
 
-// equivalent to FindSignature, but allows for multiple signatures to be found and iterated over
-class SignatureIterator
-{
-public:
-	SignatureIterator(void* pBase, size_t iSize, const byte* pSignature, size_t iSigLength) :
-		m_pBase((byte*)pBase), m_iSize(iSize), m_pSignature(pSignature), m_iSigLength(iSigLength)
-	{
-		m_pCurrent = m_pBase;
-	}
-
-	void* FindNext(bool allowWildcard)
-	{
-		for (size_t i = 0; i < m_iSize; i++)
-		{
-			size_t Matches = 0;
-			while (*(m_pCurrent + i + Matches) == m_pSignature[Matches] || (allowWildcard && m_pSignature[Matches] == '\x2A'))
-			{
-				Matches++;
-				if (Matches == m_iSigLength)
-				{
-					m_pCurrent += i + 1;
-					return m_pCurrent - 1;
-				}
-			}
-		}
-
-		return nullptr;
-	}
-private:
-	byte* m_pBase;
-	size_t m_iSize;
-	const byte* m_pSignature;
-	size_t m_iSigLength;
-	byte* m_pCurrent;
-};
-
 class CModule
 {
 public:
@@ -205,7 +169,6 @@ public:
 #ifdef _WIN32
 	void InitializeSections();
 #endif
-	void* FindVirtualTable(const std::string& name);
 public:
 	const char *m_pszModule;
 	const char* m_pszPath;

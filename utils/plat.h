@@ -60,5 +60,3 @@ int GetModuleInformation(HINSTANCE module, void** base, size_t* length, std::vec
 #define MODULE_PREFIX "lib"
 #define MODULE_EXT ".so"
 #endif
-
-void Plat_WriteMemory(void* pPatchAddress, uint8_t *pPatch, int iPatchSize);

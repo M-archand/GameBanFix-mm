@@ -30,15 +30,6 @@ bool CGameConfig::Init(IFileSystem *filesystem, char *conf_error, int conf_error
 		const char* platform = "windows";
 #endif
 
-		KeyValues* offsets = game->FindKey("Offsets", false);
-		if (offsets)
-		{
-			FOR_EACH_SUBKEY(offsets, it)
-			{
-				m_umOffsets[it->GetName()] = it->GetInt(platform, -1);
-			}
-		}
-
 		KeyValues *signatures = game->FindKey("Signatures", false);
 		if (signatures)
 		{
@@ -46,15 +37,6 @@ bool CGameConfig::Init(IFileSystem *filesystem, char *conf_error, int conf_error
 			{
 				m_umLibraries[it->GetName()] = std::string(it->GetString("library"));
 				m_umSignatures[it->GetName()] = std::string(it->GetString(platform));
-			}
-		}
-
-		KeyValues *patches = game->FindKey("Patches", false);
-		if (patches)
-		{
-			FOR_EACH_SUBKEY(patches, it)
-			{
-				m_umPatches[it->GetName()] = std::string(it->GetString(platform));
 			}
 		}
 	}
@@ -79,26 +61,6 @@ const char *CGameConfig::GetSignature(const std::string& name)
 		return nullptr;
 	}
 	return it->second.c_str();
-}
-
-const char *CGameConfig::GetPatch(const std::string& name)
-{
-	auto it = m_umPatches.find(name);
-	if (it == m_umPatches.end())
-	{
-		return nullptr;
-	}
-	return it->second.c_str();
-}
-
-int CGameConfig::GetOffset(const std::string& name)
-{
-	auto it = m_umOffsets.find(name);
-	if (it == m_umOffsets.end())
-	{
-		return -1;
-	}
-	return it->second;
 }
 
 const char *CGameConfig::GetLibrary(const std::string& name)
