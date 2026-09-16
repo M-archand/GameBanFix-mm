@@ -25,8 +25,8 @@ public:
 	void *ResolveSignature(const char *name);
 	static std::string GetDirectoryName(const std::string &directoryPathInput);
 	static int ParseHexNibble(char c);
-	static bool ParsePatternBytes(const char *pattern, std::vector<uint8_t> &bytes);
-	static byte *IDASigToUint8Array(const char *signature, size_t &length);
+	static bool ParsePatternBytes(const char *pattern, std::vector<uint8_t> &bytes, std::vector<uint8_t> &mask);
+	static bool IDASigToPattern(const char *signature, std::vector<uint8_t> &bytes, std::vector<uint8_t> &mask);
 
 private:
 	std::string m_szPath;

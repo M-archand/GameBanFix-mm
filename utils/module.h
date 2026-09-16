@@ -87,13 +87,13 @@ public:
 	// False when the module failed to load or its image info could not be read
 	bool IsValid() const { return m_hModule && m_base; }
 
-	void *FindSignature(const byte *pData, size_t iSigLength, int &error)
+	void *FindSignature(const byte *pData, const byte *pMask, size_t iSigLength, int &error)
 	{
 		unsigned char *pMemory;
 		void *return_addr = nullptr;
 		error = 0;
 
-		if (!IsValid())
+		if (!IsValid() || !pData || !pMask || iSigLength == 0 || iSigLength > m_size)
 		{
 			error = SIG_NOT_FOUND;
 			return nullptr;
@@ -101,10 +101,10 @@ public:
 
 		pMemory = (byte*)m_base;
 
-		for (size_t i = 0; i < m_size; i++)
+		for (size_t i = 0; i <= m_size - iSigLength; i++)
 		{
 			size_t Matches = 0;
-			while (*(pMemory + i + Matches) == pData[Matches] || pData[Matches] == '\x2A')
+			while (!pMask[Matches] || *(pMemory + i + Matches) == pData[Matches])
 			{
 				Matches++;
 				if (Matches == iSigLength)

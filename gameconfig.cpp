@@ -190,14 +190,14 @@ void *CGameConfig::ResolveSignature(const char *name)
 			return nullptr;
 		}
 
-		size_t iLength = 0;
-		byte *pSignature = IDASigToUint8Array(signature, iLength);
-		if (!pSignature)
+		std::vector<uint8_t> vecSignature;
+		std::vector<uint8_t> vecMask;
+		if (!IDASigToPattern(signature, vecSignature, vecMask))
 			return nullptr;
 
 		int error;
 
-		address = (*module)->FindSignature(pSignature, iLength, error);
+		address = (*module)->FindSignature((const byte *)vecSignature.data(), (const byte *)vecMask.data(), vecSignature.size(), error);
 
 		if (error == SIG_FOUND_MULTIPLE)
 			Panic("!!!!!!!!!! Signature for %s occurs multiple times! Using first match but this might end up crashing!\n", name);
@@ -236,7 +236,7 @@ int CGameConfig::ParseHexNibble(char c)
 	return -1;
 }
 
-bool CGameConfig::ParsePatternBytes(const char *pattern, std::vector<uint8_t> &bytes)
+bool CGameConfig::ParsePatternBytes(const char *pattern, std::vector<uint8_t> &bytes, std::vector<uint8_t> &mask)
 {
 	if (!pattern)
 		return false;
@@ -252,7 +252,10 @@ bool CGameConfig::ParsePatternBytes(const char *pattern, std::vector<uint8_t> &b
 
 		if (*cursor == '?')
 		{
-			bytes.push_back('\x2A');
+			// The byte value is irrelevant for a wildcard,
+			// zero keeps the pattern readable in a debugger.
+			bytes.push_back(0x00);
+			mask.push_back(0x00);
 			cursor++;
 			if (*cursor == '?')
 				cursor++;
@@ -265,32 +268,26 @@ bool CGameConfig::ParsePatternBytes(const char *pattern, std::vector<uint8_t> &b
 			return false;
 
 		bytes.push_back(static_cast<uint8_t>((highNibble << 4) | lowNibble));
+		mask.push_back(0xFF);
 		cursor += 2;
 	}
 
 	return !bytes.empty();
 }
 
-byte *CGameConfig::IDASigToUint8Array(const char *signature, size_t &length)
+bool CGameConfig::IDASigToPattern(const char *signature, std::vector<uint8_t> &bytes, std::vector<uint8_t> &mask)
 {
 	if (!signature || strlen(signature) <= 0)
 	{
 		Panic("Invalid IDA signature string\n");
-		return nullptr;
+		return false;
 	}
 
-	std::vector<uint8_t> bytes;
-	if (!ParsePatternBytes(signature, bytes))
+	if (!ParsePatternBytes(signature, bytes, mask))
 	{
 		Panic("Invalid IDA signature format \"%s\"\n", signature);
-		return nullptr;
+		return false;
 	}
 
-	length = bytes.size();
-	uint8_t *dest = new uint8_t[length];
-
-	for (size_t i = 0; i < length; i++)
-		dest[i] = bytes[i];
-
-	return (byte *)dest;
+	return true;
 }
