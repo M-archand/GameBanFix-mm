@@ -55,10 +55,8 @@ static void PurgeGcBanInformation()
 	if (!pMap)
 		return;
 
-	unsigned int count = pMap->Count();
-
 	// After player has been kicked, remove any ban entries, to prevent spreading to all new joining players
-	if (count > 0)
+	if (pMap->Count() > 0)
 		pMap->RemoveAll();
 }
 
