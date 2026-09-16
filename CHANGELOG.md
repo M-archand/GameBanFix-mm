@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.1](https://github.com/M-archand/GameBanFix-mm/compare/v2.0.0...v2.0.1) (2026-09-16)
+
+
+### Bug Fixes
+
+* **gamedata:** name the failing entry in the "Missing signature or symbol" / "Missing symbol" errors. The entry name was passed to the logger but the format string had no `%s`, so a broken gamedata entry gave nothing to act on ([7607382](https://github.com/M-archand/GameBanFix-mm/commit/760738248576b6c72d7eb6f5c932348dbb22a325))
+
+
+### Performance Improvements
+
+* **sigscan:** map game modules on demand as gamedata references them instead of mapping engine2, tier0, server, schemasystem, vscript and networksystem up front. Only `server` is mapped today, and a module that is not already loaded is no longer pulled into the process as a side effect ([375e3a2](https://github.com/M-archand/GameBanFix-mm/commit/375e3a2feb38242897a7f7958f4cdd698942e74f))
+* **sigscan:** scan only executable sections (`.text` and friends) for signatures rather than the whole module image, with a fallback to the full mapped range when a binary ships no section headers. On Windows this drops the data, relocation and debug sections from every scan ([375e3a2](https://github.com/M-archand/GameBanFix-mm/commit/375e3a2feb38242897a7f7958f4cdd698942e74f))
+
+
+### Code Refactoring
+
+* **detours:** fold the ban map count into its guard in the `CheckSteamBan` detour. The detour body stays a null check plus `Count()`/`RemoveAll()`, which is what keeps the per-think cost to a single field read ([23071c0](https://github.com/M-archand/GameBanFix-mm/commit/23071c010e0f8a5e962abee452f82596f361951d))
+
 ## [2.0.0](https://github.com/M-archand/GameBanFix-mm/compare/v1.0.7...v2.0.0) (2026-09-16)
 
 
