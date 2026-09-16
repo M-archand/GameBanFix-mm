@@ -43,7 +43,9 @@ bool InitDetours(CGameConfig *gameConfig)
 
 void FlushAllDetours()
 {
-	g_vecDetours.Purge();
+	// Uninstall the trampolines here rather than relying on ~CDetour
+	FOR_EACH_VEC(g_vecDetours, i)
+		g_vecDetours[i]->FreeDetour();
 }
 
 void FASTCALL Detour_GameSystem_Think_CheckSteamBan()
@@ -52,6 +54,9 @@ void FASTCALL Detour_GameSystem_Think_CheckSteamBan()
 	GameSystem_Think_CheckSteamBan();
 
 	auto pMap = addresses::sm_mapGcBanInformation;
+	if (!pMap)
+		return;
+
 	unsigned int count = pMap->Count();
 
 	// After player has been kicked, remove any ban entries, to prevent spreading to all new joining players

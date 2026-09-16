@@ -28,7 +28,7 @@ extern CGameConfig *g_GameConfig;
 	variable = (decltype(variable))gameConfig->ResolveSignature(name);	\
 	if (!variable)														\
 	{																	\
-		Error("Failed to resolve %s\n", name);						\
+		Panic("Failed to resolve %s\n", name);						\
 		return false;													\
 	}																	\
 	Message("Found %s at 0x%p\n", name, variable);
@@ -57,6 +57,8 @@ bool addresses::Initialize(CGameConfig *g_GameConfig)
 
 bool addresses::InitializeBanMap(CGameConfig* g_GameConfig)
 {
+	addresses::sm_mapGcBanInformation = nullptr;
+
 	// This signature directly points to the instruction referencing sm_mapGcBanInformation
 	uintptr_t pAddr = (uintptr_t)g_GameConfig->ResolveSignature("CCSGameRules__sm_mapGcBanInformation");
 

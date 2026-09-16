@@ -144,6 +144,9 @@ void CDetour<T>::FreeDetour()
 
 	if (error != 0)
 		Warning("funchook_destroy error for %s: %d %s\n", m_pszName, error, funchook_error_message(m_hook));
+
+	m_hook = nullptr;
+	m_bInstalled = false;
 }
 
 #define DECLARE_DETOUR(name, detour) \

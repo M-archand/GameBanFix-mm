@@ -86,18 +86,30 @@ public:
 		m_hModule = dlmount(szModule);
 
 		if (!m_hModule)
-			Error("Could not find %s\n", szModule);
+		{
+			Panic("Could not find %s\n", szModule);
+			return;
+		}
 
 #ifdef _WIN32
-		MODULEINFO m_hModuleInfo;
-		GetModuleInformation(GetCurrentProcess(), m_hModule, &m_hModuleInfo, sizeof(m_hModuleInfo));
+		MODULEINFO m_hModuleInfo = {};
+		if (!GetModuleInformation(GetCurrentProcess(), m_hModule, &m_hModuleInfo, sizeof(m_hModuleInfo)))
+		{
+			Panic("Failed to get module info for %s, error %lu\n", szModule, GetLastError());
+			return;
+		}
 
 		m_base = (void *)m_hModuleInfo.lpBaseOfDll;
 		m_size = m_hModuleInfo.SizeOfImage;
 		InitializeSections();
 #else
 		if (int e = GetModuleInformation(m_hModule, &m_base, &m_size, m_sections))
-			Error("Failed to get module info for %s, error %d\n", szModule, e);
+		{
+			Panic("Failed to get module info for %s, error %d\n", szModule, e);
+			m_base = nullptr;
+			m_size = 0;
+			return;
+		}
 #endif
 
 #ifdef DEBUG
@@ -108,11 +120,20 @@ public:
 #endif
 	}
 
+	// False when the module failed to load or its image info could not be read
+	bool IsValid() const { return m_hModule && m_base; }
+
 	void *FindSignature(const byte *pData, size_t iSigLength, int &error)
 	{
 		unsigned char *pMemory;
 		void *return_addr = nullptr;
 		error = 0;
+
+		if (!IsValid())
+		{
+			error = SIG_NOT_FOUND;
+			return nullptr;
+		}
 
 		pMemory = (byte*)m_base;
 
@@ -144,15 +165,27 @@ public:
 
 	void *FindInterface(const char *name)
 	{
+		if (!IsValid())
+		{
+			Panic("Cannot find %s, module %s is not loaded\n", name, m_pszModule);
+			return nullptr;
+		}
+
 		CreateInterfaceFn fn = (CreateInterfaceFn)dlsym(m_hModule, "CreateInterface");
 
 		if (!fn)
-			Error("Could not find CreateInterface in %s\n", m_pszModule);
+		{
+			Panic("Could not find CreateInterface in %s\n", m_pszModule);
+			return nullptr;
+		}
 
 		void *pInterface = fn(name, nullptr);
 
 		if (!pInterface)
-			Error("Could not find %s in %s\n", name, m_pszModule);
+		{
+			Panic("Could not find %s in %s\n", name, m_pszModule);
+			return nullptr;
+		}
 
 		Message("Found interface %s in %s\n", name, m_pszModule);
 
@@ -176,8 +209,8 @@ public:
 public:
 	const char *m_pszModule;
 	const char* m_pszPath;
-	HINSTANCE m_hModule;
-	void* m_base;
-	size_t m_size;
+	HINSTANCE m_hModule = nullptr;
+	void* m_base = nullptr;
+	size_t m_size = 0;
 	std::vector<Section> m_sections;
 };

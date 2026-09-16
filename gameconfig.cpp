@@ -141,7 +141,7 @@ bool CGameConfig::IsSymbol(const char *name)
 	const char *sigOrSymbol = this->GetSignature(name);
 	if (!sigOrSymbol || strlen(sigOrSymbol) <= 0)
 	{
-		Error("Missing signature or symbol\n", name);
+		Panic("Missing signature or symbol\n", name);
 		return false;
 	}
 	return sigOrSymbol[0] == '@';
@@ -153,7 +153,7 @@ const char* CGameConfig::GetSymbol(const char *name)
 
 	if (!symbol || strlen(symbol) <= 1)
 	{
-		Error("Missing symbol\n", name);
+		Panic("Missing symbol\n", name);
 		return nullptr;
 	}
 	return symbol + 1;
@@ -162,9 +162,9 @@ const char* CGameConfig::GetSymbol(const char *name)
 void *CGameConfig::ResolveSignature(const char *name)
 {
 	CModule **module = this->GetModule(name);
-	if (!module || !(*module))
+	if (!module || !(*module) || !(*module)->IsValid())
 	{
-		Error("Invalid Module %s\n", name);
+		Panic("Invalid Module %s\n", name);
 		return nullptr;
 	}
 
@@ -174,7 +174,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 		const char *symbol = this->GetSymbol(name);
 		if (!symbol)
 		{
-			Error("Invalid symbol for %s\n", name);
+			Panic("Invalid symbol for %s\n", name);
 			return nullptr;
 		}
 		address = dlsym((*module)->m_hModule, symbol);
@@ -184,7 +184,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 		const char *signature = this->GetSignature(name);
 		if (!signature)
 		{
-			Error("Failed to find signature for %s\n", name);
+			Panic("Failed to find signature for %s\n", name);
 			return nullptr;
 		}
 
@@ -203,7 +203,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 
 	if (!address)
 	{
-		Error("Failed to find address for %s\n", name);
+		Panic("Failed to find address for %s\n", name);
 		return nullptr;
 	}
 	return address;
@@ -251,7 +251,7 @@ byte *CGameConfig::HexToByte(const char *src, size_t &length)
 {
 	if (!src || strlen(src) <= 0)
 	{
-		Error("Invalid hex string\n");
+		Panic("Invalid hex string\n");
 		return nullptr;
 	}
 
@@ -260,7 +260,7 @@ byte *CGameConfig::HexToByte(const char *src, size_t &length)
 	int byteCount = HexStringToUint8Array(src, dest, length);
 	if (byteCount <= 0)
 	{
-		Error("Invalid hex format %s\n", src);
+		Panic("Invalid hex format %s\n", src);
 		return nullptr;
 	}
 	return (byte *)dest;
