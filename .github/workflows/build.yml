@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
 
     steps:
       - name: Checkout
@@ -47,6 +48,7 @@ jobs:
           fi
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Building $tag; the release job creates the tag once the builds pass."
           echo "Building **$tag** from \`version.h\`." >> "$GITHUB_STEP_SUMMARY"
 
@@ -165,6 +167,34 @@ jobs:
             ( cd artifacts/Windows && zip -qr "$GITHUB_WORKSPACE/${NAME}-${VERSION}-windows.zip" * )
           fi
 
+      - name: Build release notes from CHANGELOG.md
+        id: notes
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          TAG: ${{ needs.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -f CHANGELOG.md ]; then
+            awk -v ver="$VERSION" '
+              found && /^##+ \[/ { exit }
+              $0 ~ ("^##+ \\[" ver "\\]") { found=1; next }
+              found { print }
+            ' CHANGELOG.md > release_notes.md
+          else
+            : > release_notes.md
+          fi
+
+          if [ ! -s release_notes.md ]; then
+            echo "::warning file=CHANGELOG.md::No CHANGELOG.md entry for $VERSION; releasing with a placeholder body."
+            echo "Release $TAG" > release_notes.md
+          fi
+
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            cat release_notes.md
+            echo 'RELEASE_NOTES_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Release
         uses: svenstaro/upload-release-action@v2
         with:
@@ -174,3 +204,4 @@ jobs:
           file_glob: true
           overwrite: true
           release_name: ${{ needs.version.outputs.tag }}
+          body: ${{ steps.notes.outputs.body }}
