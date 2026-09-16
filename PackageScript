@@ -48,5 +48,5 @@ with open(os.path.join(builder.buildPath, 'pdblog.txt'), 'wt') as fp:
   for line in pdb_list:
     fp.write(line.path + '\n')
 
-gamedata_folder = builder.AddFolder(os.path.join(bin64_folder_path, 'gamedata'))
-builder.AddCopy(os.path.join('gamedata', 'gamebanfix.games.txt'), gamedata_folder)
+gamedata_folder = builder.AddFolder(os.path.join('addons', MMSPlugin.plugin_name, 'gamedata'))
+builder.AddCopy(os.path.join('gamedata', 'gamebanfix.jsonc'), gamedata_folder)

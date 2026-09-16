@@ -1,50 +1,90 @@
 #include "gameconfig.h"
 #include "addresses.h"
+#undef snprintf
+#include "vendor/nlohmann/json.hpp"
 
-CGameConfig::CGameConfig(const std::string& gameDir, const std::string& path)
+#include <cctype>
+#include <fstream>
+
+using ordered_json = nlohmann::ordered_json;
+
+CGameConfig::CGameConfig(const std::string& path)
 {
-	this->m_szGameDir = gameDir;
 	this->m_szPath = path;
-	this->m_pKeyValues = new KeyValues("Games");
 }
 
 CGameConfig::~CGameConfig()
 {
-	delete m_pKeyValues;
 }
 
-bool CGameConfig::Init(IFileSystem *filesystem, char *conf_error, int conf_error_size)
+bool CGameConfig::Init(char *conf_error, int conf_error_size)
 {
-	if (!m_pKeyValues->LoadFromFile(filesystem, m_szPath.c_str(), nullptr))
+	char szPath[MAX_PATH];
+	V_snprintf(szPath, sizeof(szPath), "%s%s%s", Plat_GetGameDirectory(), "/csgo/", m_szPath.c_str());
+	std::ifstream gamedataFile(szPath);
+
+	if (!gamedataFile.is_open())
 	{
-		snprintf(conf_error, conf_error_size, "Failed to load gamedata file");
+		snprintf(conf_error, conf_error_size, "Failed to open %s, gamedata not loaded", m_szPath.c_str());
 		return false;
 	}
 
-	KeyValues* game = m_pKeyValues->FindKey(m_szGameDir.c_str(), false);
-	if (game)
+	ordered_json jsonGamedata = ordered_json::parse(gamedataFile, nullptr, false, true);
+
+	if (jsonGamedata.is_discarded() || !jsonGamedata.is_object())
 	{
+		snprintf(conf_error, conf_error_size, "Failed parsing gamedata JSON from %s", m_szPath.c_str());
+		return false;
+	}
+
 #if defined _LINUX
-		const char* platform = "linux";
+	const char* platform = "linux";
 #else
-		const char* platform = "windows";
+	const char* platform = "windows";
 #endif
 
-		KeyValues *signatures = game->FindKey("Signatures", false);
-		if (signatures)
+	for (auto& [strSection, jsonSection] : jsonGamedata.items())
+	{
+		if (!jsonSection.is_object())
 		{
-			FOR_EACH_SUBKEY(signatures, it)
+			snprintf(conf_error, conf_error_size, "Section '%s' must be an object", strSection.c_str());
+			return false;
+		}
+
+		if (strSection != "Signatures")
+			continue;
+
+		for (auto& [strEntry, jsonEntry] : jsonSection.items())
+		{
+			if (!jsonEntry.is_object())
 			{
-				m_umLibraries[it->GetName()] = std::string(it->GetString("library"));
-				m_umSignatures[it->GetName()] = std::string(it->GetString(platform));
+				snprintf(conf_error, conf_error_size, "Entry '%s' must be an object", strEntry.c_str());
+				return false;
 			}
+
+			const auto library = jsonEntry.find("library");
+			if (library == jsonEntry.end() || !library->is_string())
+			{
+				snprintf(conf_error, conf_error_size, "Signature '%s' is missing string 'library' value", strEntry.c_str());
+				return false;
+			}
+
+			m_umLibraries[strEntry] = library->get<std::string>();
+
+			const auto platformValue = jsonEntry.find(platform);
+			if (platformValue == jsonEntry.end())
+				continue;
+
+			if (!platformValue->is_string())
+			{
+				snprintf(conf_error, conf_error_size, "Signature '%s' '%s' value is not a string", strEntry.c_str(), platform);
+				return false;
+			}
+
+			m_umSignatures[strEntry] = platformValue->get<std::string>();
 		}
 	}
-	else
-	{
-		snprintf(conf_error, conf_error_size, "Failed to find game: %s", m_szGameDir.c_str());
-		return false;
-	}
+
 	return true;
 }
 
@@ -151,7 +191,7 @@ void *CGameConfig::ResolveSignature(const char *name)
 		}
 
 		size_t iLength = 0;
-		byte *pSignature = HexToByte(signature, iLength);
+		byte *pSignature = IDASigToUint8Array(signature, iLength);
 		if (!pSignature)
 			return nullptr;
 
@@ -184,46 +224,73 @@ std::string CGameConfig::GetDirectoryName(const std::string &directoryPathInput)
     return "";
 }
 
-int CGameConfig::HexStringToUint8Array(const char* hexString, uint8_t* byteArray, size_t maxBytes)
+int CGameConfig::ParseHexNibble(char c)
 {
-    if (!hexString) {
-        printf("Invalid hex string.\n");
-		return -1;
-	}
+	if (c >= '0' && c <= '9')
+		return c - '0';
 
-    size_t hexStringLength = strlen(hexString);
-    size_t byteCount = hexStringLength / 4; // Each "\\x" represents one byte.
+	const char lower = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+	if (lower >= 'a' && lower <= 'f')
+		return lower - 'a' + 10;
 
-    if (hexStringLength % 4 != 0 || byteCount == 0 || byteCount > maxBytes) {
-        printf("Invalid hex string format or byte count.\n");
-        return -1; // Return an error code.
-    }
-
-    for (size_t i = 0; i < hexStringLength; i += 4) {
-        if (sscanf(hexString + i, "\\x%2hhX", &byteArray[i / 4]) != 1) {
-            printf("Failed to parse hex string at position %zu.\n", i);
-            return -1; // Return an error code.
-        }
-    }
-
-    return byteCount; // Return the number of bytes successfully converted.
+	return -1;
 }
 
-byte *CGameConfig::HexToByte(const char *src, size_t &length)
+bool CGameConfig::ParsePatternBytes(const char *pattern, std::vector<uint8_t> &bytes)
 {
-	if (!src || strlen(src) <= 0)
+	if (!pattern)
+		return false;
+
+	const char *cursor = pattern;
+	while (*cursor)
 	{
-		Panic("Invalid hex string\n");
+		while (*cursor && std::isspace(static_cast<unsigned char>(*cursor)))
+			cursor++;
+
+		if (!*cursor)
+			break;
+
+		if (*cursor == '?')
+		{
+			bytes.push_back('\x2A');
+			cursor++;
+			if (*cursor == '?')
+				cursor++;
+			continue;
+		}
+
+		const int highNibble = ParseHexNibble(cursor[0]);
+		const int lowNibble = ParseHexNibble(cursor[1]);
+		if (highNibble < 0 || lowNibble < 0)
+			return false;
+
+		bytes.push_back(static_cast<uint8_t>((highNibble << 4) | lowNibble));
+		cursor += 2;
+	}
+
+	return !bytes.empty();
+}
+
+byte *CGameConfig::IDASigToUint8Array(const char *signature, size_t &length)
+{
+	if (!signature || strlen(signature) <= 0)
+	{
+		Panic("Invalid IDA signature string\n");
 		return nullptr;
 	}
 
-	length = strlen(src) / 4;
-	uint8_t *dest = new uint8_t[length];
-	int byteCount = HexStringToUint8Array(src, dest, length);
-	if (byteCount <= 0)
+	std::vector<uint8_t> bytes;
+	if (!ParsePatternBytes(signature, bytes))
 	{
-		Panic("Invalid hex format %s\n", src);
+		Panic("Invalid IDA signature format \"%s\"\n", signature);
 		return nullptr;
 	}
+
+	length = bytes.size();
+	uint8_t *dest = new uint8_t[length];
+
+	for (size_t i = 0; i < length; i++)
+		dest[i] = bytes[i];
+
 	return (byte *)dest;
 }

@@ -3,7 +3,6 @@
 #include "gameconfig.h"
 #include "detours.h"
 #include "utils/module.h"
-#include <KeyValues.h>
 
 IVEngineServer2 *g_pEngineServer2 = nullptr;
 CGameConfig *g_GameConfig = nullptr;
@@ -50,7 +49,6 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 {
 	PLUGIN_SAVEVARS();
 
-	GET_V_IFACE_ANY(GetFileSystemFactory, g_pFullFileSystem, IFileSystem, FILESYSTEM_INTERFACE_VERSION);
 	GET_V_IFACE_CURRENT(GetEngineFactory, g_pEngineServer2, IVEngineServer2, SOURCE2ENGINETOSERVER_INTERFACE_VERSION);
 
 	CBufferStringGrowable<256> gamedirpath;
@@ -58,18 +56,14 @@ bool GameBanFix::Load(PluginId id, ISmmAPI *ismm, char *error, size_t maxlen, bo
 
 	std::string gamedirname = CGameConfig::GetDirectoryName(gamedirpath.Get());
 
-#ifdef _WIN32
-	const char *gamedataPath = "addons/gamebanfix/bin/win64/gamedata/gamebanfix.games.txt";
-#else
-	const char *gamedataPath = "addons/gamebanfix/bin/linuxsteamrt64/gamedata/gamebanfix.games.txt";
-#endif
+	const char *gamedataPath = "addons/gamebanfix/gamedata/gamebanfix.jsonc";
 #ifdef DEBUG
 	Message("Loading %s for game: %s\n", gamedataPath, gamedirname.c_str());
 #endif
 
-	g_GameConfig = new CGameConfig(gamedirname, gamedataPath);
+	g_GameConfig = new CGameConfig(gamedataPath);
 	char conf_error[255] = "";
-	if (!g_GameConfig->Init(g_pFullFileSystem, conf_error, sizeof(conf_error)))
+	if (!g_GameConfig->Init(conf_error, sizeof(conf_error)))
 	{
 		snprintf(error, maxlen, "Could not read %s: %s", g_GameConfig->GetPath().c_str(), conf_error);
 		Panic("%s\n", error);
