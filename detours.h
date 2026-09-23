@@ -18,16 +18,14 @@
  */
 
 #pragma once
-#include "cdetour.h"
-
+#include "addresses.h"
+#include <khook.hpp>
 
 bool InitDetours(CGameConfig *gameConfig);
 void FlushAllDetours();
 
 #ifdef _WIN32
-// Win64 passes the first four integer arguments in rcx, rdx, r8, r9.
-void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4);
+KHook::Return<void> Post_GameSystem_Think_CheckSteamBan(void *, void *, void *, void *);
 #else
-// SysV passes the first six in rdi, rsi, rdx, rcx, r8, r9.
-void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4, void *a5, void *a6);
+KHook::Return<void> Post_GameSystem_Think_CheckSteamBan(void *, void *, void *, void *, void *, void *);
 #endif

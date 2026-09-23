@@ -32,12 +32,7 @@ struct Section
 	bool m_bExecutable = false;
 };
 
-#if defined(_WIN32)
-#define FASTCALL __fastcall
-#define THISCALL __thiscall
-#else
-#define FASTCALL
-#define THISCALL
+#ifndef _WIN32
 #define strtok_s strtok_r
 #endif
 

@@ -16,36 +16,52 @@
  * You should have received a copy of the GNU General Public License along with
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "cdetour.h"
 #include "detours.h"
-#include "gameconfig.h"
+
+#include <memory>
 
 #include "tier0/memdbgon.h"
 
-CUtlVector<CDetourBase *> g_vecDetours;
+#ifdef _WIN32
+using CheckSteamBanHook = KHook::Function<void, void *, void *, void *, void *>;
+#else
+using CheckSteamBanHook = KHook::Function<void, void *, void *, void *, void *, void *, void *>;
+#endif
 
-DECLARE_DETOUR(GameSystem_Think_CheckSteamBan, Detour_GameSystem_Think_CheckSteamBan);
+struct CFunctionHook : CheckSteamBanHook
+{
+	CFunctionHook(CheckSteamBanHook::fnCallback pre, CheckSteamBanHook::fnCallback post) : CheckSteamBanHook(pre, post) {}
+
+	bool IsHooked() const { return _associated_hook_id != KHook::INVALID_HOOK; }
+};
+
+static std::unique_ptr<CFunctionHook> g_pCheckSteamBanHook;
 
 bool InitDetours(CGameConfig *gameConfig)
 {
-	bool success = true;
+	const char *pszName = "GameSystem_Think_CheckSteamBan";
 
-	FOR_EACH_VEC(g_vecDetours, i)
+	void *pAddress = gameConfig->ResolveSignature(pszName);
+	if (!pAddress)
+		return false;
+
+	g_pCheckSteamBanHook = std::make_unique<CFunctionHook>(nullptr, Post_GameSystem_Think_CheckSteamBan);
+	g_pCheckSteamBanHook->Configure(pAddress);
+
+	if (!g_pCheckSteamBanHook->IsHooked())
 	{
-		if (!g_vecDetours[i]->CreateDetour(gameConfig))
-			success = false;
-
-		g_vecDetours[i]->EnableDetour();
+		Panic("Failed to hook %s at 0x%p\n", pszName, pAddress);
+		g_pCheckSteamBanHook.reset();
+		return false;
 	}
 
-	return success;
+	Message("Detoured %s at 0x%p\n", pszName, pAddress);
+	return true;
 }
 
 void FlushAllDetours()
 {
-	// Uninstall the trampolines here rather than relying on ~CDetour
-	FOR_EACH_VEC(g_vecDetours, i)
-		g_vecDetours[i]->FreeDetour();
+	g_pCheckSteamBanHook.reset();
 }
 
 // Implementation shared by @aiolos1045
@@ -61,17 +77,11 @@ static void PurgeGcBanInformation()
 }
 
 #ifdef _WIN32
-void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4)
-{
-	GameSystem_Think_CheckSteamBan(a1, a2, a3, a4);
-
-	PurgeGcBanInformation();
-}
+KHook::Return<void> Post_GameSystem_Think_CheckSteamBan(void *, void *, void *, void *)
 #else
-void FASTCALL Detour_GameSystem_Think_CheckSteamBan(void *a1, void *a2, void *a3, void *a4, void *a5, void *a6)
-{
-	GameSystem_Think_CheckSteamBan(a1, a2, a3, a4, a5, a6);
-
-	PurgeGcBanInformation();
-}
+KHook::Return<void> Post_GameSystem_Think_CheckSteamBan(void *, void *, void *, void *, void *, void *)
 #endif
+{
+	PurgeGcBanInformation();
+	return { KHook::Action::Ignore };
+}
