@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.3](https://github.com/M-archand/GameBanFix-mm/compare/v2.0.2...v2.0.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **detours:** propagate hook installation failure from `InitDetours`. A hook that KHook refuses to install now fails the plugin load with the function name and address in the log; previously the funchook error was logged but `Load` still reported success with no detour in place ([d178454](https://github.com/M-archand/GameBanFix-mm/commit/d17845430629d5d367cd9b9103f2cb7dbd5ab5f5))
+
+
+### Build System
+
+* **khook:** hook `GameSystem_Think_CheckSteamBan` through `KHook::Function` instead of a funchook trampoline wrapped in the CS2Fixes `CDetour` helper. The prebuilt funchook and diStorm static libraries under `vendor/funchook` (~1.4 MB of object code with no version or build provenance) and `cdetour.h` are removed; the plugin links no third-party hooking code, and KHook is zlib-licensed where funchook was GPLv2 with a linking exception. **Requires Metamod:Source build 1469 or newer:** the `KHook::Function::Configure(void*)` overload used here is not in the build 1462 header, and 1469 (which bumps the bundled KHook to a build carrying its `-fno-threadsafe-statics` fix) is the build CI compiles against; builds 1461-1468 are untested ([d178454](https://github.com/M-archand/GameBanFix-mm/commit/d17845430629d5d367cd9b9103f2cb7dbd5ab5f5))
+
 ## [2.0.1](https://github.com/M-archand/GameBanFix-mm/compare/v2.0.0...v2.0.1) (2026-09-16)
 
 

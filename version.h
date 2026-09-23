@@ -1,4 +1,4 @@
 // CI: The release tag is this string with a leading v
 #pragma once
 
-#define GAMEBANFIX_VERSION "2.0.2"
+#define GAMEBANFIX_VERSION "2.0.3"

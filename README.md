@@ -17,10 +17,10 @@ There is nothing to configure. Install it and it works.
 ## Requirements
 
 - CS2 dedicated server
-- [Metamod:Source](https://cs2.poggu.me/metamod/installation/) build **1461 or newer**
+- [Metamod:Source](https://cs2.poggu.me/metamod/installation/) build **1469 or newer**
 
 > [!IMPORTANT]
-> Builds 2.0.0 and later are KHook-based (plugin API 18) and will not load on older Metamod builds. If you are on an older Metamod, either update it or stay on GameBanFix v1.0.7.
+> Builds 2.0.0 and later are KHook-based (plugin API 18) and will not load on older Metamod builds. 2.0.3 and later also route the `CheckSteamBan` detour itself through Metamod's KHook, which raises the floor from build 1461 to 1469. If you are on an older Metamod, either update it, stay on GameBanFix v2.0.2 (Metamod 1461-1468), or stay on v1.0.7 (pre-KHook Metamod).
 
 ## Installation
 
@@ -38,7 +38,7 @@ addons/gamebanfix/gamedata/gamebanfix.jsonc
 ```
 
 > [!CAUTION]
-> Do not run this alongside CS2Fixes or any other plugin that detours `CheckSteamBan`. Two detours on the same function will fight over the same bytes.
+> Do not run this alongside CS2Fixes or any other plugin that detours `CheckSteamBan` with its own hooking library. GameBanFix hooks through Metamod's KHook, which can share a function with other KHook hooks, but a foreign trampoline on the same prologue will fight over the same bytes.
 
 ## When a game update breaks it
 
@@ -54,7 +54,7 @@ This is deliberate, it fails to load rather than detouring the wrong function. W
 
 ## Building from source
 
-Requires [AMBuild](https://wiki.alliedmods.net/Ambuild), a C++20 compiler (clang on Linux, MSVC on Windows), and checkouts of [Metamod:Source](https://github.com/alliedmodders/metamod-source) and the [CS2 HL2SDK](https://github.com/alliedmodders/hl2sdk/tree/cs2) beside this repository.
+Requires [AMBuild](https://wiki.alliedmods.net/Ambuild), a C++20 compiler (clang on Linux, MSVC on Windows), and checkouts of [Metamod:Source](https://github.com/alliedmodders/metamod-source) and the [CS2 HL2SDK](https://github.com/alliedmodders/hl2sdk/tree/cs2) beside this repository. Metamod must be build 1469 or newer; no third-party hooking library is needed, the detour goes through Metamod's bundled KHook.
 
 ```sh
 mkdir build && cd build
