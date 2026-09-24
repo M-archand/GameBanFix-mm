@@ -13,20 +13,20 @@ for sdk_target in MMSPlugin.sdk_targets:
   binary = MMSPlugin.HL2Library(builder, cxx, MMSPlugin.plugin_name, sdk)
 
   binary.sources += [
-    'gamebanfix.cpp',
-    'addresses.cpp',
-    'gameconfig.cpp',
-    'detours.cpp',
+    'src/gamebanfix.cpp',
+    'src/addresses.cpp',
+    'src/gameconfig.cpp',
+    'src/detours.cpp',
   ]
 
   if binary.compiler.target.platform == 'linux':
-    binary.sources += ['utils/plat_unix.cpp']
+    binary.sources += ['src/utils/plat_unix.cpp']
   elif binary.compiler.target.platform == 'windows':
     binary.compiler.postlink += [
         os.path.join('psapi.lib'),
         os.path.join(sdk['path'], 'lib', 'public', 'win64', 'steam_api64.lib')
       ]
-    binary.sources += ['utils/plat_win.cpp']
+    binary.sources += ['src/utils/plat_win.cpp']
 
   # hl2sdk-cs2's public/eiface.h includes "network_connection.pb.h", but the
   # SDK only ships the .proto source for it (common/network_connection.proto),

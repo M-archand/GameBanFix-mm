@@ -20,16 +20,16 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Resolve the tag from version.h
+      - name: Resolve the tag from src/version.h
         id: resolve
         run: |
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
           # One source of truth for the version, bumped by hand in the source.
-          version="$(sed -n 's/^#define GAMEBANFIX_VERSION[[:space:]]*"\([^"]*\)".*$/\1/p' version.h)"
+          version="$(sed -n 's/^#define GAMEBANFIX_VERSION[[:space:]]*"\([^"]*\)".*$/\1/p' src/version.h)"
           if [ -z "$version" ]; then
-            echo "::error file=version.h::Could not read GAMEBANFIX_VERSION from version.h."
+            echo "::error file=src/version.h::Could not read GAMEBANFIX_VERSION from src/version.h."
             exit 1
           fi
           tag="v$version"
@@ -41,16 +41,16 @@ jobs:
               echo "### Release $tag already exists"
               echo
               echo "Version \`$version\` has already been published, so this run cannot release it again."
-              echo "Bump \`GAMEBANFIX_VERSION\` in \`version.h\` to the next version, push that, then run this workflow again."
+              echo "Bump \`GAMEBANFIX_VERSION\` in \`src/version.h\` to the next version, push that, then run this workflow again."
             } >> "$GITHUB_STEP_SUMMARY"
-            echo "::error file=version.h::Version $version already exists as tag $tag. Bump GAMEBANFIX_VERSION in version.h and run again."
+            echo "::error file=src/version.h::Version $version already exists as tag $tag. Bump GAMEBANFIX_VERSION in src/version.h and run again."
             exit 1
           fi
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Building $tag; the release job creates the tag once the builds pass."
-          echo "Building **$tag** from \`version.h\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "Building **$tag** from \`src/version.h\`." >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build
