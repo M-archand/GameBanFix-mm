@@ -180,7 +180,10 @@ void *CGameConfig::ResolveSignature(const char *name)
 		address = module->FindSignature((const byte *)vecSignature.data(), (const byte *)vecMask.data(), vecSignature.size(), error);
 
 		if (error == SIG_FOUND_MULTIPLE)
-			Panic("!!!!!!!!!! Signature for %s occurs multiple times! Using first match but this might end up crashing!\n", name);
+		{
+			Panic("Signature for %s matches more than one location, refusing to load rather than guess. Update the gamedata with a unique pattern\n", name);
+			return nullptr;
+		}
 	}
 
 	if (!address)

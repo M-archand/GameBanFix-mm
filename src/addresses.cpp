@@ -59,6 +59,15 @@ namespace
 #endif
 		return true;
 	}
+
+	bool SectionContains(const Section *pSection, uintptr_t start, size_t iSize)
+	{
+		if (!pSection)
+			return false;
+
+		uintptr_t base = (uintptr_t)pSection->m_pBase;
+		return start >= base && iSize <= pSection->m_iSize && start - base <= pSection->m_iSize - iSize;
+	}
 }
 
 CModule *modules::Get(const char *library)
@@ -99,30 +108,64 @@ bool addresses::Initialize(CGameConfig *g_GameConfig)
 
 bool addresses::InitializeBanMap(CGameConfig* g_GameConfig)
 {
+	const char *pszName = "CCSGameRules__sm_mapGcBanInformation";
 	addresses::sm_mapGcBanInformation = nullptr;
 
 	// This signature directly points to the instruction referencing sm_mapGcBanInformation
-	uintptr_t pAddr = (uintptr_t)g_GameConfig->ResolveSignature("CCSGameRules__sm_mapGcBanInformation");
+	const uint8_t *pInsn = (const uint8_t *)g_GameConfig->ResolveSignature(pszName);
 
-	if (!pAddr)
+	if (!pInsn)
 		return false;
 
-	// the opcode is 3 bytes so we skip those
-	pAddr += 3;
+	CModule *module = g_GameConfig->GetModule(pszName);
 
-	// Grab the offset as 4 bytes
-	uint32 offset = *(uint32*)pAddr;
-
-	// Go to the next instruction, which is what the relative address is based off
-	pAddr += 4;
-
-	// Get the real address
-	addresses::sm_mapGcBanInformation = (decltype(addresses::sm_mapGcBanInformation))(pAddr + offset);
-
-	if (!addresses::sm_mapGcBanInformation)
+	if (!module)
 		return false;
 
-	Message("Found %s at 0x%p\n", "CCSGameRules__sm_mapGcBanInformation", addresses::sm_mapGcBanInformation);
+	const size_t iInsnLength = 7;
+
+	bool bInCode = false;
+	for (const auto &section : module->m_sections)
+	{
+		if (section.m_bExecutable && SectionContains(&section, (uintptr_t)pInsn, iInsnLength))
+		{
+			bInCode = true;
+			break;
+		}
+	}
+
+	if (!bInCode)
+	{
+		Panic("%s at 0x%p is not inside an executable section, refusing to load\n", pszName, pInsn);
+		return false;
+	}
+
+	if ((pInsn[0] & 0xF8) != 0x48 || pInsn[1] != 0x8D || (pInsn[2] & 0xC7) != 0x05)
+	{
+		Panic("%s at 0x%p is not a RIP-relative lea (%02X %02X %02X), refusing to load\n", pszName, pInsn, pInsn[0], pInsn[1], pInsn[2]);
+		return false;
+	}
+
+	int32_t disp;
+	memcpy(&disp, pInsn + 3, sizeof(disp));
+
+	uintptr_t target = (uintptr_t)(pInsn + iInsnLength) + (intptr_t)disp;
+
+	const size_t iMapSize = sizeof(*addresses::sm_mapGcBanInformation);
+	const Section *pSection = module->GetSection(".data");
+
+	if (!pSection || pSection->m_bExecutable || !SectionContains(pSection, target, iMapSize))
+		pSection = module->GetSection(".bss");
+
+	if (!pSection || pSection->m_bExecutable || !SectionContains(pSection, target, iMapSize))
+	{
+		Panic("%s resolves to 0x%p, outside the module's .data and .bss sections, refusing to load\n", pszName, (void *)target);
+		return false;
+	}
+
+	addresses::sm_mapGcBanInformation = (decltype(addresses::sm_mapGcBanInformation))target;
+
+	Message("Found %s at 0x%p in %s\n", pszName, addresses::sm_mapGcBanInformation, pSection->m_szName.c_str());
 	return true;
 }
 

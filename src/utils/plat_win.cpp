@@ -34,7 +34,9 @@ void CModule::InitializeSections()
 		Section section;
 		section.m_szName = (char*)pSectionHeader[i].Name;
 		section.m_pBase = (void*)((uint8_t*)m_base + pSectionHeader[i].VirtualAddress);
-		section.m_iSize = pSectionHeader[i].SizeOfRawData;
+		const DWORD iRawSize = pSectionHeader[i].SizeOfRawData;
+		const DWORD iVirtualSize = pSectionHeader[i].Misc.VirtualSize;
+		section.m_iSize = iRawSize > iVirtualSize ? iRawSize : iVirtualSize;
 		section.m_bExecutable = (pSectionHeader[i].Characteristics & IMAGE_SCN_MEM_EXECUTE) != 0;
 
 		m_sections.push_back(std::move(section));
